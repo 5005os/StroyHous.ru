@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>StroyHous — Магазин стройматериалов</title>
+
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+<script>
+  firebase.initializeApp({
+    apiKey: "AlzaSyCu7Y2vlMAdL-dOgJgPOg3psGU4GbNYY9o",
+    authDomain: "stroimarket-d1bdd.firebaseapp.com",
+    projectId: "stroimarket-d1bdd"
+  });
+  const db = firebase.firestore();
+</script>
+
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0a0a0b;
+    --surface:#161618;
+    --surface2:#1f1f23;
+    --border:#2a2a30;
+    --accent:#f97316;
+    --accent-dark:#ea580c;
+    --text:#f5f5f4;
+    --muted:#8a8a93;
+    --green:#22c55e;
+    --red:#ef4444;
+    --blue:#3b82f6;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  body{
+    font-family:'Manrope',sans-serif;
+    background:var(--bg);
+    color:var(--text);
+    padding-bottom:90px;
+    min-height:100vh;
+  }
+  .container{max-width:1100px;margin:0 auto;padding:0 16px;}
+
+  /* Header */
+  .topbar{
+    display:flex;justify-content:space-between;align-items:center;
+    padding:24px 0 8px;
+  }
+  .logo{font-size:34px;font-weight:800;letter-spacing:-1px;}
+  .logo span{color:var(--accent);}
+  .sort-btn{
+    width:48px;height:48px;border-radius:50%;
+    background:var(--surface2);border:none;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;
+    color:var(--accent);font-size:20px;
+  }
+
+  /* Promo banner */
+  .promo{
+    background:linear-gradient(135deg,var(--accent),var(--accent-dark));
+    border-radius:22px;padding:26px 24px;margin:16px 0;
+    position:relative;overflow:hidden;
+  }
+  .promo h2{font-size:30px;font-weight:800;margin-bottom:6px;}
+  .promo p{font-size:15px;opacity:.95;}
+  .promo p.small{font-size:13px;opacity:.8;margin-top:2px;}
+  .promo .emoji{position:absolute;right:18px;top:50%;transform:translateY(-50%);font-size:80px;opacity:.85;}
+
+  /* Categories */
+  .cats{display:flex;gap:10px;overflow-x:auto;padding:8px 0 16px;scrollbar-width:none;}
+  .cats::-webkit-scrollbar{display:none;}
+  .cat{
+    flex-shrink:0;padding:13px 22px;border-radius:16px;
+    background:var(--surface2);border:none;cursor:pointer;
+    color:var(--text);font-size:15px;font-weight:600;font-family:inherit;
+    white-space:nowrap;transition:.15s;
+  }
+  .cat.active{background:var(--accent);color:#fff;}
+
+  /* Product grid */
+  .grid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;}
+  @media(min-width:700px){.grid{grid-template-columns:repeat(3,1fr);}}
+  @media(min-width:980px){.grid{grid-template-columns:repeat(4,1fr);}}
+
+  .card{
+    background:var(--surface);border-radius:20px;padding:12px;
+    display:flex;flex-direction:column;cursor:pointer;
+    transition:.15s;border:1px solid transparent;
+  }
+  .card:active{transform:scale(.98);}
+  .card-img{
+    background:var(--surface2);border-radius:14px;
+    height:150px;display:flex;align-items:center;justify-content:center;
+    font-size:64px;position:relative;margin-bottom:10px;
+  }
+  .badge{
+    position:absolute;top:10px;left:10px;
+    padding:5px 11px;border-radius:10px;font-size:12px;font-weight:700;color:#fff;
+  }
+  .badge.discount{background:var(--red);}
+  .badge.new{background:var(--blue);}
+  .badge.hit{background:var(--accent);}
+  .fav{
+    position:absolute;top:8px;right:8px;width:38px;height:38px;border-radius:50%;
+    background:rgba(0,0,0,.45);border:none;cursor:pointer;color:#fff;font-size:17px;
+    display:flex;align-items:center;justify-content:center;
+  }
+  .fav.active{color:var(--red);}
+  .brand{font-size:13px;color:var(--muted);margin-bottom:2px;}
+  .name{font-size:15px;font-weight:600;line-height:1.3;margin-bottom:8px;flex:1;}
+  .price-row{display:flex;justify-content:space-between;align-items:flex-end;}
+  .price{font-size:19px;font-weight:800;color:var(--accent);}
+  .old-price{font-size:13px;color:var(--muted);text-decoration:line-through;}
+  .add-btn{
+    width:42px;height:42px;border-radius:13px;background:var(--accent);
+    border:none;cursor:pointer;color:#fff;font-size:24px;line-height:1;
+    display:flex;align-items:center;justify-content:center;flex-shrink:0;
+  }
+  .add-btn:active{background:var(--accent-dark);}
+
+  /* Bottom nav */
+  .bottomnav{
+    position:fixed;bottom:14px;left:50%;transform:translateX(-50%);
+    background:var(--surface2);border-radius:24px;
+    display:flex;gap:4px;padding:8px;z-index:50;
+    box-shadow:0 8px 30px rgba(0,0,0,.5);
+  }
+  .nav-item{
+    background:none;border:none;cursor:pointer;color:var(--muted);
+    font-family:inherit;font-size:11px;font-weight:600;
+    display:flex;flex-direction:column;align-items:center;gap:3px;
+    padding:8px 14px;border-radius:16px;transition:.15s;position:relative;
+  }
+  .nav-item.active{background:var(--accent);color:#fff;}
+  .nav-item svg{width:22px;height:22px;}
+  .nav-badge{
+    position:absolute;top:2px;right:8px;background:var(--red);color:#fff;
+    font-size:10px;font-weight:700;min-width:17px;height:17px;border-radius:9px;
+    display:flex;align-items:center;justify-content:center;padding:0 4px;
+  }
+
+  /* States */
+  .loading,.empty{text-align:center;padding:80px 20px;color:var(--muted);font-size:16px;}
+  .spinner{
+    width:40px;height:40px;border:4px solid var(--surface2);
+    border-top-color:var(--accent);border-radius:50%;
+    animation:spin 1s linear infinite;margin:0 auto 16px;
+  }
+  @keyframes spin{to{transform:rotate(360deg);}}
+
+  .section-title{font-size:22px;font-weight:800;margin:8px 0 16px;}
+
+  /* Modal (product detail) */
+  .modal{
+    position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:100;
+    display:none;align-items:flex-end;justify-content:center;
+  }
+  .modal.open{display:flex;}
+  .sheet{
+    background:var(--bg);width:100%;max-width:600px;border-radius:24px 24px 0 0;
+    max-height:92vh;overflow-y:auto;animation:slideup .25s ease;
+  }
+  @keyframes slideup{from{transform:translateY(100%);}to{transform:translateY(0);}}
+  .sheet-img{
+    background:var(--surface);height:280px;display:flex;align-items:center;justify-content:center;
+    font-size:120px;position:relative;
+  }
+  .sheet-back{
+    position:absolute;top:16px;left:16px;width:46px;height:46px;border-radius:50%;
+    background:rgba(0,0,0,.5);border:none;cursor:pointer;color:#fff;font-size:20px;
+  }
+  .sheet-body{padding:24px;}
+  .sheet-brand{color:var(--muted);font-size:15px;}
+  .sheet-name{font-size:26px;font-weight:800;margin:4px 0 16px;line-height:1.2;}
+  .sheet-price{font-size:32px;font-weight:800;color:var(--accent);}
+  .sheet-stock{display:flex;align-items:center;gap:8px;margin:16px 0;color:var(--text);font-weight:600;}
+  .dot{width:10px;height:10px;border-radius:50%;background:var(--green);}
+  .divider{height:1px;background:var(--border);margin:18px 0;}
+  .sheet-h{font-size:19px;font-weight:700;margin-bottom:8px;}
+  .sheet-desc{color:var(--muted);line-height:1.6;}
+  .delivery-row{display:flex;justify-content:space-between;align-items:center;padding:10px 0;}
+  .delivery-row .left{display:flex;align-items:center;gap:12px;font-weight:600;}
+  .delivery-row .ico{font-size:22px;}
+  .free{color:var(--green);font-weight:700;}
+
+  /* Cart */
+  .cart-item{
+    display:flex;gap:14px;background:var(--surface);border-radius:18px;padding:12px;margin-bottom:12px;align-items:center;
+  }
+  .cart-emoji{width:64px;height:64px;background:var(--surface2);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:32px;flex-shrink:0;}
+  .cart-info{flex:1;}
+  .cart-info .n{font-weight:600;font-size:15px;}
+  .cart-info .p{color:var(--accent);font-weight:800;margin-top:4px;}
+  .qty{display:flex;align-items:center;gap:10px;}
+  .qty button{width:32px;height:32px;border-radius:9px;border:none;background:var(--surface2);color:var(--text);font-size:18px;cursor:pointer;}
+  .qty span{min-width:22px;text-align:center;font-weight:700;}
+  .cart-total{background:var(--surface);border-radius:18px;padding:20px;margin:18px 0;}
+  .ct-row{display:flex;justify-content:space-between;margin-bottom:10px;color:var(--muted);}
+  .ct-row.big{color:var(--text);font-size:20px;font-weight:800;margin-bottom:0;padding-top:10px;border-top:1px solid var(--border);}
+  .checkout-btn{
+    width:100%;padding:18px;border-radius:16px;background:var(--accent);border:none;
+    color:#fff;font-size:18px;font-weight:700;font-family:inherit;cursor:pointer;margin-top:6px;
+  }
+  .checkout-btn:active{background:var(--accent-dark);}
+  .pay-options{display:flex;flex-direction:column;gap:10px;margin:14px 0;}
+  .pay-opt{display:flex;align-items:center;gap:12px;padding:14px;background:var(--surface);border:2px solid var(--border);border-radius:14px;cursor:pointer;font-weight:600;}
+  .pay-opt.sel{border-color:var(--accent);}
+
+  .hidden{display:none!important;}
+</style>
+</head>
+<body>
+
+<div class="container">
+  <!-- ===== CATALOG VIEW ===== -->
+  <div id="view-catalog">
+    <div class="topbar">
+      <div class="logo">Stroy<span>Hous</span></div>
+      <button class="sort-btn" onclick="toggleSort()" title="Сортировка">⇅</button>
+    </div>
+
+    <div class="promo">
+      <h2>Скидки до 30%</h2>
+      <p>На инструменты Bosch и Makita</p>
+      <p class="small">Только до конца месяца</p>
+      <div class="emoji">🔧</div>
+    </div>
+
+    <div class="cats" id="cats"></div>
+
+    <div id="products">
+      <div class="loading"><div class="spinner"></div>Загрузка товаров…</div>
+    </div>
+  </div>
+
+  <!-- ===== FAVORITES VIEW ===== -->
+  <div id="view-fav" class="hidden">
+    <h2 class="section-title" style="margin-top:24px;">Избранное</h2>
+    <div id="fav-list"></div>
+  </div>
+
+  <!-- ===== CART VIEW ===== -->
+  <div id="view-cart" class="hidden">
+    <h2 class="section-title" style="margin-top:24px;">Корзина</h2>
+    <div id="cart-list"></div>
+  </div>
+
+  <!-- ===== SEARCH VIEW ===== -->
+  <div id="view-search" class="hidden">
+    <h2 class="section-title" style="margin-top:24px;">Поиск</h2>
+    <input id="search-input" placeholder="Что ищете?" oninput="doSearch()" style="width:100%;padding:16px;border-radius:14px;background:var(--surface);border:1px solid var(--border);color:var(--text);font-size:16px;font-family:inherit;margin-bottom:16px;">
+    <div id="search-results"></div>
+  </div>
+
+  <!-- ===== PROFILE VIEW ===== -->
+  <div id="view-profile" class="hidden">
+    <h2 class="section-title" style="margin-top:24px;">Профиль</h2>
+    <div style="background:var(--surface);border-radius:18px;padding:24px;text-align:center;color:var(--muted);">
+      <div style="font-size:60px;margin-bottom:12px;">🏗️</div>
+      <p style="font-size:18px;font-weight:700;color:var(--text);margin-bottom:6px;">StroyHous</p>
+      <p>Магазин строительных материалов и инструментов</p>
+      <div class="divider"></div>
+      <p style="text-align:left;line-height:2;">🚚 Бесплатная доставка от 10 000 ₽<br>🏪 Самовывоз — бесплатно<br>📦 Доставка через Ozon (пункт выдачи)<br>💳 Оплата картой (ЮKassa)</p>
+    </div>
+  </div>
+</div>
+
+<!-- ===== PRODUCT DETAIL MODAL ===== -->
+<div class="modal" id="detail-modal">
+  <div class="sheet" id="sheet-content"></div>
+</div>
+
+<!-- ===== BOTTOM NAV ===== -->
+<nav class="bottomnav">
+  <button class="nav-item active" data-view="catalog" onclick="switchView('catalog')">
+    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 3h8v8H3V3zm10 0h8v8h-8V3zM3 13h8v8H3v-8zm10 0h8v8h-8v-8z"/></svg>
+    Каталог
+  </button>
+  <button class="nav-item" data-view="search" onclick="switchView('search')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>
+    Поиск
+  </button>
+  <button class="nav-item" data-view="cart" onclick="switchView('cart')">
+    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 18c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm10 0c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zM7.2 14h9.5c.7 0 1.3-.4 1.6-1l3.6-6.5L19.8 5l-3.3 6H8L4.3 2H1v2h2l3.6 7.6L5.2 15c-.3.5-.2 1.2.4 1.5.2.1.4.5 1.6.5z"/></svg>
+    Корзина
+    <span class="nav-badge hidden" id="cart-badge">0</span>
+  </button>
+  <button class="nav-item" data-view="fav" onclick="switchView('fav')">
+    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 21s-7-4.5-9.5-9C1 9 2.5 5 6 5c2 0 3.2 1.3 4 2.5C10.8 6.3 12 5 14 5c3.5 0 5 4 3.5 7-2.5 4.5-9.5 9-9.5 9z"/></svg>
+    Избранное
+  </button>
+  <button class="nav-item" data-view="profile" onclick="switchView('profile')">
+    <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 4-6 8-6s8 2 8 6"/></svg>
+    Профиль
+  </button>
+</nav>
+
+<script>
+  let allProducts = [];
+  let cart = {};       // id -> qty
+  let favorites = {};  // id -> true
+  let currentCat = 'Все';
+  let sortAsc = true;
+
+  const categories = ['Все','Инструменты','Материалы','Сантехника','Отделка','Электрика'];
+  const emojiByCat = {'Инструменты':'🔧','Материалы':'🧱','Сантехника':'🚿','Отделка':'🎨','Электрика':'💡'};
+
+  // ---- load from Firebase ----
+  function loadProducts(){
+    db.collection('products').get().then(snap=>{
+      allProducts = snap.docs.map(d=>({id:d.id, ...d.data()}));
+      renderCats();
+      renderProducts();
+    }).catch(err=>{
+      document.getElementById('products').innerHTML =
+        '<div class="empty">Не удалось загрузить товары.<br>Попробуйте обновить страницу.</div>';
+      console.error(err);
+    });
+  }
+
+  function renderCats(){
+    document.getElementById('cats').innerHTML = categories.map(c=>
+      `<button class="cat ${c===currentCat?'active':''}" onclick="selectCat('${c}')">${emojiByCat[c]?emojiByCat[c]+' ':''}${c}</button>`
+    ).join('');
+  }
+  function selectCat(c){currentCat=c;renderCats();renderProducts();}
+  function toggleSort(){sortAsc=!sortAsc;renderProducts();}
+
+  function emojiFor(p){return p.emoji || emojiByCat[p.category] || '📦';}
+
+  function renderProducts(){
+    let list = allProducts.filter(p=>currentCat==='Все'||p.category===currentCat);
+    list.sort((a,b)=> sortAsc ? (a.price||0)-(b.price||0) : (b.price||0)-(a.price||0));
+    const el = document.getElementById('products');
+    if(!list.length){el.innerHTML='<div class="empty">В этой категории пока нет товаров</div>';return;}
+    el.innerHTML = '<div class="grid">'+list.map(p=>cardHTML(p)).join('')+'</div>';
+  }
+
+  function cardHTML(p){
+    const fav = favorites[p.id]?'active':'';
+    let badge='';
+    if(p.badge==='Скидка'||p.oldPrice) badge='<span class="badge discount">Скидка</span>';
+    else if(p.badge==='Новинка') badge='<span class="badge new">Новинка</span>';
+    else if(p.badge==='Хит') badge='<span class="badge hit">Хит</span>';
+    const old = p.oldPrice?`<span class="old-price">${fmt(p.oldPrice)} ₽</span>`:'';
+    return `
+    <div class="card" onclick="openDetail('${p.id}')">
+      <div class="card-img">
+        ${badge}
+        <button class="fav ${fav}" onclick="event.stopPropagation();toggleFav('${p.id}')">♥</button>
+        ${emojiFor(p)}
+      </div>
+      <div class="brand">${p.brand||p.category||''}</div>
+      <div class="name">${p.name||''}</div>
+      <div class="price-row">
+        <div>
+          <div class="price">${fmt(p.price)} ₽</div>
+          ${old}
+        </div>
+        <button class="add-btn" onclick="event.stopPropagation();addToCart('${p.id}')">+</button>
+      </div>
+    </div>`;
+  }
+
+  function fmt(n){return (n||0).toLocaleString('ru-RU');}
+
+  // ---- product detail ----
+  function openDetail(id){
+    const p = allProducts.find(x=>x.id===id);if(!p)return;
+    const old = p.oldPrice?`<span class="old-price" style="font-size:18px;">${fmt(p.oldPrice)} ₽</span>`:'';
+    document.getElementById('sheet-content').innerHTML = `
+      <div class="sheet-img">
+        <button class="sheet-back" onclick="closeDetail()">←</button>
+        ${emojiFor(p)}
+      </div>
+      <div class="sheet-body">
+        <div class="sheet-brand">${p.brand||p.category||''}</div>
+        <div class="sheet-name">${p.name||''}</div>
+        <div style="display:flex;align-items:center;gap:14px;">
+          <span class="sheet-price">${fmt(p.price)} ₽</span> ${old}
+        </div>
+        <div class="sheet-stock"><span class="dot"></span> В наличии${p.inStock?': '+p.inStock+' шт':''}</div>
+        <div class="divider"></div>
+        <div class="sheet-h">Описание</div>
+        <div class="sheet-desc">${p.description||'Описание появится позже.'}</div>
+        <div class="divider"></div>
+        <div class="sheet-h">Доставка</div>
+        <div class="delivery-row"><div class="left"><span class="ico">🚴</span> Курьером</div><span>от 299 ₽</span></div>
+        <div class="delivery-row"><div class="left"><span class="ico">🏪</span> Самовывоз</div><span class="free">Бесплатно</span></div>
+        <div class="delivery-row"><div class="left"><span class="ico">📦</span> Ozon (пункт выдачи)</div><span class="free">Бесплатно</span></div>
+        <div class="delivery-row"><div class="left"><span class="ico">🚚</span> От 10 000 ₽</div><span class="free">Бесплатно</span></div>
+        <button class="checkout-btn" style="margin-top:20px;" onclick="addToCart('${p.id}');closeDetail();switchView('cart');">🛒 В корзину</button>
+      </div>`;
+    document.getElementById('detail-modal').classList.add('open');
+  }
+  function closeDetail(){document.getElementById('detail-modal').classList.remove('open');}
+  document.getElementById('detail-modal').addEventListener('click',e=>{if(e.target.id==='detail-modal')closeDetail();});
+
+  // ---- favorites ----
+  function toggleFav(id){
+    if(favorites[id])delete favorites[id];else favorites[id]=true;
+    renderProducts();
+    if(!document.getElementById('view-fav').classList.contains('hidden'))renderFav();
+  }
+  function renderFav(){
+    const list = allProducts.filter(p=>favorites[p.id]);
+    const el=document.getElementById('fav-list');
+    if(!list.length){el.innerHTML='<div class="empty">Вы пока ничего не добавили в избранное ♥</div>';return;}
+    el.innerHTML='<div class="grid">'+list.map(p=>cardHTML(p)).join('')+'</div>';
+  }
+
+  // ---- cart ----
+  function addToCart(id){cart[id]=(cart[id]||0)+1;updateBadge();flash();}
+  function changeQty(id,d){
+    cart[id]=(cart[id]||0)+d;
+    if(cart[id]<=0)delete cart[id];
+    updateBadge();renderCart();
+  }
+  function updateBadge(){
+    const n=Object.values(cart).reduce((a,b)=>a+b,0);
+    const b=document.getElementById('cart-badge');
+    if(n>0){b.textContent=n;b.classList.remove('hidden');}else b.classList.add('hidden');
+  }
+  function flash(){
+    const b=document.getElementById('cart-badge');
+    b.style.transform='scale(1.4)';setTimeout(()=>b.style.transform='scale(1)',150);
+  }
+  function cartTotal(){
+    return Object.entries(cart).reduce((s,[id,q])=>{
+      const p=allProducts.find(x=>x.id===id);return s+(p?p.price*q:0);
+    },0);
+  }
+  function renderCart(){
+    const el=document.getElementById('cart-list');
+    const ids=Object.keys(cart);
+    if(!ids.length){el.innerHTML='<div class="empty">Корзина пуста 🛒<br>Добавьте товары из каталога</div>';return;}
+    let html=ids.map(id=>{
+      const p=allProducts.find(x=>x.id===id);if(!p)return'';
+      return `<div class="cart-item">
+        <div class="cart-emoji">${emojiFor(p)}</div>
+        <div class="cart-info">
+          <div class="n">${p.name}</div>
+          <div class="p">${fmt(p.price)} ₽</div>
+        </div>
+        <div class="qty">
+          <button onclick="changeQty('${id}',-1)">−</button>
+          <span>${cart[id]}</span>
+          <button onclick="changeQty('${id}',1)">+</button>
+        </div>
+      </div>`;
+    }).join('');
+    const total=cartTotal();
+    const delivery = total>=10000?0:299;
+    html+=`<div class="cart-total">
+      <div class="ct-row"><span>Товары</span><span>${fmt(total)} ₽</span></div>
+      <div class="ct-row"><span>Доставка</span><span>${delivery===0?'<span class="free">Бесплатно</span>':fmt(delivery)+' ₽'}</span></div>
+      <div class="ct-row big"><span>Итого</span><span>${fmt(total+delivery)} ₽</span></div>
+    </div>`;
+    html+=`
+      <div class="sheet-h">Способ получения</div>
+      <div class="pay-options">
+        <label class="pay-opt sel"><input type="radio" name="ship" checked> 🏪 Самовывоз — бесплатно</label>
+        <label class="pay-opt"><input type="radio" name="ship"> 📦 Ozon (пункт выдачи) — бесплатно</label>
+        <label class="pay-opt"><input type="radio" name="ship"> 🚴 Курьером — от 299 ₽</label>
+      </div>
+      <button class="checkout-btn" onclick="checkout()">Оформить заказ — ${fmt(total+delivery)} ₽</button>`;
+    el.innerHTML=html;
+    // radio select styling
+    document.querySelectorAll('.pay-opt').forEach(opt=>{
+      opt.addEventListener('click',()=>{
+        document.querySelectorAll('.pay-opt').forEach(o=>o.classList.remove('sel'));
+        opt.classList.add('sel');
+      });
+    });
+  }
+  function checkout(){
+    if(!Object.keys(cart).length)return;
+    alert('Заказ оформлен! ✅\n\nМы свяжемся с вами для подтверждения.\nОплата картой (ЮKassa) будет доступна в ближайшее время.');
+    cart={};updateBadge();renderCart();
+  }
+
+  // ---- search ----
+  function doSearch(){
+    const q=document.getElementById('search-input').value.toLowerCase().trim();
+    const el=document.getElementById('search-results');
+    if(!q){el.innerHTML='';return;}
+    const list=allProducts.filter(p=>
+      (p.name||'').toLowerCase().includes(q)||(p.brand||'').toLowerCase().includes(q)||(p.category||'').toLowerCase().includes(q));
+    if(!list.length){el.innerHTML='<div class="empty">Ничего не найдено</div>';return;}
+    el.innerHTML='<div class="grid">'+list.map(p=>cardHTML(p)).join('')+'</div>';
+  }
+
+  // ---- view switching ----
+  function switchView(v){
+    ['catalog','search','cart','fav','profile'].forEach(name=>{
+      document.getElementById('view-'+name).classList.toggle('hidden',name!==v);
+    });
+    document.querySelectorAll('.nav-item').forEach(b=>b.classList.toggle('active',b.dataset.view===v));
+    if(v==='cart')renderCart();
+    if(v==='fav')renderFav();
+    window.scrollTo(0,0);
+  }
+
+  loadProducts();
+</script>
+</body>
+</html>
