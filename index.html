@@ -191,8 +191,7 @@
   let pendingPhone='', genCode='', deliveryKm=null, deliveryAddr='', currentShip='pickup', ymap=null;
 
   const SHOP={lat:55.5022, lon:37.5575, name:'StroyHous, Симферопольское шоссе 17А'};
-  const RATES=[{max:10,perKm:50},{max:30,perKm:110},{max:50,perKm:150},{max:100,perKm:200},{max:500,perKm:500},{max:1000,perKm:1000}];
-  const FREE_RADIUS=5, FREE_MIN_SUM=5000;
+  const PRICE_PER_KM=30, PRICE_PER_KG=30;
   const categories=['Все','Инструменты','Материалы','Сантехника','Отделка','Электрика'];
   const emojiByCat={'Инструменты':'🔧','Материалы':'🧱','Сантехника':'🚿','Отделка':'🎨','Электрика':'💡'};
 
@@ -239,13 +238,12 @@
   function cartSum(){return Object.entries(cart).reduce((s,[id,q])=>{const p=allProducts.find(x=>x.id===id);return s+(p?p.price*q:0);},0);}
   function cartWeight(){return Object.entries(cart).reduce((s,[id,q])=>{const p=allProducts.find(x=>x.id===id);return s+(p&&p.weight?p.weight*q:0);},0);}
   function calcDelivery(){
-    const sum=cartSum(), weight=cartWeight();
+    const weight=cartWeight();
     if(deliveryKm===null)return null;
-    if(deliveryKm<=FREE_RADIUS && sum>=FREE_MIN_SUM)return{price:0,free:true};
-    let rate=RATES[RATES.length-1].perKm;
-    for(const r of RATES){if(weight<=r.max){rate=r.perKm;break;}}
-    const billableKm=Math.max(0,deliveryKm-FREE_RADIUS);
-    return{price:Math.ceil(billableKm)*rate,free:false,rate,billableKm:Math.ceil(billableKm),weight};
+    const km=Math.ceil(deliveryKm);
+    const kg=Math.ceil(weight);
+    const price=km*PRICE_PER_KM + kg*PRICE_PER_KG;
+    return{price,free:false,km,kg,weight};
   }
   function renderCart(){
     const el=document.getElementById('cart-list');const ids=Object.keys(cart);
