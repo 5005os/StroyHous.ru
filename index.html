@@ -14,7 +14,7 @@
   });
   const db = firebase.firestore();
 </script>
-<script src="https://api-maps.yandex.ru/2.1/?apikey=c173e7c0-c0a8-4813-b5cb-989723160036&lang=ru_RU" type="text/javascript"></script>
+<script src="https://api-maps.yandex.ru/2.1/?lang=ru_RU" type="text/javascript"></script>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
   :root{--bg:#0a0a0b;--surface:#161618;--surface2:#1f1f23;--border:#2a2a30;--accent:#f97316;--accent-dark:#ea580c;--text:#f5f5f4;--muted:#8a8a93;--green:#22c55e;--red:#ef4444;--blue:#3b82f6;}
@@ -64,6 +64,15 @@
   @keyframes slideup{from{transform:translateY(100%);}to{transform:translateY(0);}}
   .sheet-img{background:var(--surface);height:280px;display:flex;align-items:center;justify-content:center;font-size:120px;position:relative;overflow:hidden;}
   .sheet-img img{width:100%;height:100%;object-fit:cover;}
+  .gallery{position:relative;height:280px;background:var(--surface);overflow:hidden;}
+  .gallery-track{display:flex;height:100%;transition:transform .3s ease;}
+  .gallery-slide{min-width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:120px;}
+  .gallery-slide img{width:100%;height:100%;object-fit:cover;}
+  .gallery-dots{position:absolute;bottom:14px;left:50%;transform:translateX(-50%);display:flex;gap:8px;z-index:3;}
+  .gallery-dots span{width:8px;height:8px;border-radius:50%;background:rgba(255,255,255,.5);cursor:pointer;transition:.2s;}
+  .gallery-dots span.on{background:#fff;width:22px;border-radius:4px;}
+  .gallery-arrow{position:absolute;top:50%;transform:translateY(-50%);width:42px;height:42px;border-radius:50%;background:rgba(0,0,0,.5);border:none;color:#fff;font-size:20px;cursor:pointer;z-index:3;display:flex;align-items:center;justify-content:center;}
+  .gallery-arrow.left{left:12px;}.gallery-arrow.right{right:12px;}
   .sheet-back{position:absolute;top:16px;left:16px;width:46px;height:46px;border-radius:50%;background:rgba(0,0,0,.5);border:none;cursor:pointer;color:#fff;font-size:20px;z-index:2;}
   .sheet-body{padding:24px;}
   .sheet-brand{color:var(--muted);font-size:15px;}
@@ -186,7 +195,13 @@
   }
   function renderCats(){document.getElementById('cats').innerHTML=categories.map(c=>`<button class="cat ${c===currentCat?'active':''}" onclick="selectCat('${c}')">${emojiByCat[c]?emojiByCat[c]+' ':''}${c}</button>`).join('');}
   function selectCat(c){currentCat=c;renderCats();renderProducts();}
-  function imgOrEmoji(p,big){if(p.img)return `<img src="${p.img}" alt="">`;return p.emoji||emojiByCat[p.category]||'📦';}
+  function getPhotos(p){
+    let arr=[];
+    if(Array.isArray(p.images))arr=p.images.filter(u=>u&&u.trim());
+    else if(p.img)arr=[p.img];
+    return arr;
+  }
+  function imgOrEmoji(p){const ph=getPhotos(p);if(ph.length)return `<img src="${ph[0]}" alt="">`;return p.emoji||emojiByCat[p.category]||'📦';}
   function emojiFor(p){return p.emoji||emojiByCat[p.category]||'📦';}
   function fmt(n){return (Math.round(n)||0).toLocaleString('ru-RU');}
   function weightText(p){return p.weight?`Вес: ${p.weight} кг`:'';}
@@ -204,9 +219,30 @@
   function openDetail(id){
     const p=allProducts.find(x=>x.id===id);if(!p)return;
     const w=p.weight?`<div class="delivery-row"><div class="left"><span class="ico">⚖️</span> Вес</div><span>${p.weight} кг</span></div>`:'';
-    document.getElementById('sheet-content').innerHTML=`<div class="sheet-img"><button class="sheet-back" onclick="closeDetail()">←</button>${imgOrEmoji(p,true)}</div><div class="sheet-body"><div class="sheet-brand">${p.category||''}</div><div class="sheet-name">${p.name||''}</div><div style="display:flex;align-items:center;gap:14px;"><span class="sheet-price">${fmt(p.price)} ₽</span></div><div class="sheet-stock"><span class="dot"></span> В наличии${p.inStock!=null?': '+p.inStock+' шт':''}</div><div class="divider"></div><div class="sheet-h">Описание</div><div class="sheet-desc">${p.description||'Описание появится позже.'}</div><div class="divider"></div><div class="sheet-h">Доставка</div>${w}<div class="delivery-row"><div class="left"><span class="ico">🏪</span> Самовывоз</div><span class="free">Бесплатно</span></div><div class="delivery-row"><div class="left"><span class="ico">🚚</span> Курьер</div><span>30 ₽/км + 30 ₽/кг</span></div><button class="checkout-btn" style="margin-top:20px;" onclick="addToCart('${p.id}');closeDetail();switchView('cart');">🛒 В корзину</button></div>`;
+    document.getElementById('sheet-content').innerHTML=`<div class="sheet-img-wrap">${galleryHTML(p)}</div><div class="sheet-body"><div class="sheet-brand">${p.category||''}</div><div class="sheet-name">${p.name||''}</div><div style="display:flex;align-items:center;gap:14px;"><span class="sheet-price">${fmt(p.price)} ₽</span></div><div class="sheet-stock"><span class="dot"></span> В наличии${p.inStock!=null?': '+p.inStock+' шт':''}</div><div class="divider"></div><div class="sheet-h">Описание</div><div class="sheet-desc">${p.description||'Описание появится позже.'}</div><div class="divider"></div><div class="sheet-h">Доставка</div>${w}<div class="delivery-row"><div class="left"><span class="ico">🏪</span> Самовывоз</div><span class="free">Бесплатно</span></div><div class="delivery-row"><div class="left"><span class="ico">🚚</span> Курьер</div><span>30 ₽/км + 30 ₽/кг</span></div><button class="checkout-btn" style="margin-top:20px;" onclick="addToCart('${p.id}');closeDetail();switchView('cart');">🛒 В корзину</button></div>`;
+    galleryIndex=0;
     document.getElementById('detail-modal').classList.add('open');
   }
+  let galleryIndex=0, galleryPhotos=[];
+  function galleryHTML(p){
+    const ph=getPhotos(p);
+    galleryPhotos=ph;
+    if(!ph.length){
+      return `<div class="sheet-img"><button class="sheet-back" onclick="closeDetail()">←</button>${p.emoji||emojiByCat[p.category]||'📦'}</div>`;
+    }
+    const slides=ph.map(u=>`<div class="gallery-slide"><img src="${u}" alt=""></div>`).join('');
+    const dots=ph.length>1?`<div class="gallery-dots">${ph.map((_,i)=>`<span class="${i===0?'on':''}" onclick="goSlide(${i})"></span>`).join('')}</div>`:'';
+    const arrows=ph.length>1?`<button class="gallery-arrow left" onclick="moveSlide(-1)">‹</button><button class="gallery-arrow right" onclick="moveSlide(1)">›</button>`:'';
+    return `<div class="gallery"><button class="sheet-back" onclick="closeDetail()" style="z-index:4;">←</button><div class="gallery-track" id="gallery-track">${slides}</div>${arrows}${dots}</div>`;
+  }
+  function goSlide(i){
+    if(!galleryPhotos.length)return;
+    galleryIndex=(i+galleryPhotos.length)%galleryPhotos.length;
+    const track=document.getElementById('gallery-track');
+    if(track)track.style.transform=`translateX(-${galleryIndex*100}%)`;
+    document.querySelectorAll('.gallery-dots span').forEach((d,idx)=>d.classList.toggle('on',idx===galleryIndex));
+  }
+  function moveSlide(d){goSlide(galleryIndex+d);}
   function closeDetail(){document.getElementById('detail-modal').classList.remove('open');}
   document.getElementById('detail-modal').addEventListener('click',e=>{if(e.target.id==='detail-modal')closeDetail();});
   function toggleFav(id){if(favorites[id])delete favorites[id];else favorites[id]=true;renderProducts();if(!document.getElementById('view-fav').classList.contains('hidden'))renderFav();}
