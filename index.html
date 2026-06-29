@@ -1,1 +1,750 @@
-<!DOCTYPE html><html><head><title>StroyHous</title></head><body><h1>Загрузка...</h1></body></html>
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>StroyHous — Магазин стройматериалов</title>
+<script>
+  // адрес твоего сервера
+  const API="https://api.stroyhous.ru/api";
+  // помощник для запросов к серверу
+  async function apiGet(path){const r=await fetch(API+path);if(!r.ok)throw new Error('GET '+path);return r.json();}
+  async function apiSend(path,method,body){const r=await fetch(API+path,{method,headers:{'Content-Type':'application/json'},body:body?JSON.stringify(body):undefined});if(!r.ok){let e={};try{e=await r.json();}catch(_){}throw new Error(e.error||method+' '+path);}return r.json();}
+</script>
+<script src="https://api-maps.yandex.ru/2.1/?apikey=c173e7c0-c0a8-4813-b5cb-989723160036&lang=ru_RU" type="text/javascript"></script>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{--bg:#0a0a0b;--surface:#161618;--surface2:#1f1f23;--border:#2a2a30;--accent:#f97316;--accent-dark:#ea580c;--text:#f5f5f4;--muted:#8a8a93;--green:#22c55e;--red:#ef4444;--blue:#3b82f6;}
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  body{font-family:'Manrope',sans-serif;background:var(--bg);color:var(--text);padding-bottom:90px;min-height:100vh;}
+  .container{max-width:1100px;margin:0 auto;padding:0 16px;}
+  .topbar{display:flex;justify-content:space-between;align-items:center;padding:24px 0 16px;}
+  .logo{font-size:34px;font-weight:800;letter-spacing:-1px;}
+  .logo span{color:var(--accent);}
+  .login-btn{padding:11px 18px;border-radius:14px;background:var(--surface2);border:none;cursor:pointer;color:var(--text);font-family:inherit;font-weight:600;font-size:14px;display:flex;align-items:center;gap:7px;}
+  .login-btn.logged{color:var(--accent);}
+  .cats{display:flex;gap:10px;overflow-x:auto;padding:8px 0 16px;scrollbar-width:none;}
+  .cats::-webkit-scrollbar{display:none;}
+  .cat{flex-shrink:0;padding:13px 22px;border-radius:16px;background:var(--surface2);border:none;cursor:pointer;color:var(--text);font-size:15px;font-weight:600;font-family:inherit;white-space:nowrap;transition:.15s;}
+  .cat.active{background:var(--accent);color:#fff;}
+  .grid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;}
+  @media(min-width:700px){.grid{grid-template-columns:repeat(3,1fr);}}
+  @media(min-width:980px){.grid{grid-template-columns:repeat(4,1fr);}}
+  .card{background:var(--surface);border-radius:20px;padding:12px;display:flex;flex-direction:column;cursor:pointer;transition:.15s;border:1px solid transparent;}
+  .card:active{transform:scale(.98);}
+  .card-img{background:var(--surface2);border-radius:14px;aspect-ratio:3/4;display:flex;align-items:center;justify-content:center;font-size:64px;position:relative;margin-bottom:10px;overflow:hidden;}
+  .card-img img{width:100%;height:100%;object-fit:cover;}
+  .badge{position:absolute;top:10px;left:10px;padding:5px 11px;border-radius:10px;font-size:12px;font-weight:700;color:#fff;}
+  .badge.discount{background:var(--red);}.badge.new{background:var(--blue);}.badge.hit{background:var(--accent);}
+  .fav{position:absolute;top:8px;right:8px;width:38px;height:38px;border-radius:50%;background:rgba(0,0,0,.45);border:none;cursor:pointer;color:#fff;font-size:17px;display:flex;align-items:center;justify-content:center;}
+  .fav.active{color:var(--red);}
+  .brand{font-size:13px;color:var(--muted);margin-bottom:2px;}
+  .name{font-size:15px;font-weight:600;line-height:1.3;margin-bottom:4px;flex:1;}
+  .weight{font-size:12px;color:var(--muted);margin-bottom:8px;}
+  .price-row{display:flex;justify-content:space-between;align-items:flex-end;}
+  .price{font-size:19px;font-weight:800;color:var(--accent);}
+  .old-price{font-size:13px;color:var(--muted);text-decoration:line-through;}
+  .add-btn{width:42px;height:42px;border-radius:13px;background:var(--accent);border:none;cursor:pointer;color:#fff;font-size:24px;line-height:1;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+  .add-btn:active{background:var(--accent-dark);}
+  .bottomnav{position:fixed;bottom:14px;left:50%;transform:translateX(-50%);background:var(--surface2);border-radius:24px;display:flex;gap:4px;padding:8px;z-index:50;box-shadow:0 8px 30px rgba(0,0,0,.5);}
+  .nav-item{background:none;border:none;cursor:pointer;color:var(--muted);font-family:inherit;font-size:11px;font-weight:600;display:flex;flex-direction:column;align-items:center;gap:3px;padding:8px 14px;border-radius:16px;transition:.15s;position:relative;}
+  .nav-item.active{background:var(--accent);color:#fff;}
+  .nav-item svg{width:22px;height:22px;}
+  .nav-badge{position:absolute;top:2px;right:8px;background:var(--red);color:#fff;font-size:10px;font-weight:700;min-width:17px;height:17px;border-radius:9px;display:flex;align-items:center;justify-content:center;padding:0 4px;}
+  .loading,.empty{text-align:center;padding:80px 20px;color:var(--muted);font-size:16px;}
+  .spinner{width:40px;height:40px;border:4px solid var(--surface2);border-top-color:var(--accent);border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 16px;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+  .section-title{font-size:22px;font-weight:800;margin:8px 0 16px;}
+  .modal{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:100;display:none;align-items:flex-end;justify-content:center;}
+  .modal.open{display:flex;}
+  .sheet{background:var(--bg);width:100%;max-width:600px;border-radius:24px 24px 0 0;max-height:92vh;overflow-y:auto;animation:slideup .25s ease;}
+  @keyframes slideup{from{transform:translateY(100%);}to{transform:translateY(0);}}
+  .sheet-img{background:var(--surface);aspect-ratio:3/4;max-height:60vh;display:flex;align-items:center;justify-content:center;font-size:120px;position:relative;overflow:hidden;}
+  .sheet-img img{width:100%;height:100%;object-fit:cover;}
+  .gallery{position:relative;aspect-ratio:3/4;max-height:65vh;background:var(--surface);overflow:hidden;}
+  .gallery-track{display:flex;height:100%;transition:transform .3s ease;}
+  .gallery-slide{min-width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:120px;}
+  .gallery-slide img{width:100%;height:100%;object-fit:cover;}
+  .gallery-dots{position:absolute;bottom:14px;left:50%;transform:translateX(-50%);display:flex;gap:8px;z-index:3;}
+  .gallery-dots span{width:8px;height:8px;border-radius:50%;background:rgba(255,255,255,.5);cursor:pointer;transition:.2s;}
+  .gallery-dots span.on{background:#fff;width:22px;border-radius:4px;}
+  .gallery-arrow{position:absolute;top:50%;transform:translateY(-50%);width:42px;height:42px;border-radius:50%;background:rgba(0,0,0,.5);border:none;color:#fff;font-size:20px;cursor:pointer;z-index:3;display:flex;align-items:center;justify-content:center;}
+  .gallery-arrow.left{left:12px;}.gallery-arrow.right{right:12px;}
+  .sheet-back{position:absolute;top:16px;left:16px;width:46px;height:46px;border-radius:50%;background:rgba(0,0,0,.5);border:none;cursor:pointer;color:#fff;font-size:20px;z-index:2;}
+  .sheet-body{padding:24px;}
+  .sheet-brand{color:var(--muted);font-size:15px;}
+  .sheet-name{font-size:26px;font-weight:800;margin:4px 0 16px;line-height:1.2;}
+  .sheet-price{font-size:32px;font-weight:800;color:var(--accent);}
+  .sheet-stock{display:flex;align-items:center;gap:8px;margin:16px 0;color:var(--text);font-weight:600;}
+  .dot{width:10px;height:10px;border-radius:50%;background:var(--green);}
+  .divider{height:1px;background:var(--border);margin:18px 0;}
+  .sheet-h{font-size:19px;font-weight:700;margin-bottom:8px;}
+  .sheet-desc{color:var(--muted);line-height:1.6;}
+  .delivery-row{display:flex;justify-content:space-between;align-items:center;padding:10px 0;}
+  .delivery-row .left{display:flex;align-items:center;gap:12px;font-weight:600;}
+  .delivery-row .ico{font-size:22px;}
+  .free{color:var(--green);font-weight:700;}
+  .cart-item{display:flex;gap:14px;background:var(--surface);border-radius:18px;padding:12px;margin-bottom:12px;align-items:center;}
+  .cart-emoji{width:64px;height:64px;background:var(--surface2);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:32px;flex-shrink:0;overflow:hidden;}
+  .cart-emoji img{width:100%;height:100%;object-fit:cover;}
+  .cart-info{flex:1;}
+  .cart-info .n{font-weight:600;font-size:15px;}
+  .cart-info .p{color:var(--accent);font-weight:800;margin-top:4px;}
+  .cart-info .w{color:var(--muted);font-size:12px;}
+  .qty{display:flex;align-items:center;gap:10px;}
+  .qty button{width:32px;height:32px;border-radius:9px;border:none;background:var(--surface2);color:var(--text);font-size:18px;cursor:pointer;}
+  .qty span{min-width:22px;text-align:center;font-weight:700;}
+  .cart-total{background:var(--surface);border-radius:18px;padding:20px;margin:18px 0;}
+  .ct-row{display:flex;justify-content:space-between;margin-bottom:10px;color:var(--muted);}
+  .ct-row.big{color:var(--text);font-size:20px;font-weight:800;margin-bottom:0;padding-top:10px;border-top:1px solid var(--border);}
+  .checkout-btn{width:100%;padding:18px;border-radius:16px;background:var(--accent);border:none;color:#fff;font-size:18px;font-weight:700;font-family:inherit;cursor:pointer;margin-top:6px;}
+  .checkout-btn:active{background:var(--accent-dark);}
+  .ship-options{display:flex;flex-direction:column;gap:10px;margin:14px 0;}
+  .ship-opt{display:flex;align-items:center;justify-content:space-between;padding:14px;background:var(--surface);border:2px solid var(--border);border-radius:14px;cursor:pointer;font-weight:600;}
+  .ship-opt.sel{border-color:var(--accent);}
+  .ship-opt .l{display:flex;align-items:center;gap:10px;}
+  .field{width:100%;padding:15px;border-radius:14px;background:var(--surface);border:1px solid var(--border);color:var(--text);font-size:16px;font-family:inherit;margin-bottom:12px;}
+  #map{width:100%;height:450px;border-radius:16px;margin:12px 0;background:var(--surface2);overflow:hidden;}
+  .map-fallback{display:flex;align-items:center;justify-content:center;height:100%;color:var(--muted);text-align:center;padding:20px;}
+  .hidden{display:none!important;}
+  .info-card{background:var(--surface);border-radius:18px;padding:20px;}
+  .otp-inputs{display:flex;gap:10px;justify-content:center;margin:20px 0;}
+  .otp-inputs input{width:48px;height:58px;text-align:center;font-size:24px;font-weight:700;border-radius:12px;background:var(--surface);border:2px solid var(--border);color:var(--text);}
+  .otp-inputs input:focus{border-color:var(--accent);outline:none;}
+  .profile-hero{text-align:center;padding:50px 24px;}
+  .profile-hero .ava{width:90px;height:90px;border-radius:50%;background:var(--surface2);display:flex;align-items:center;justify-content:center;font-size:44px;margin:0 auto 18px;}
+</style>
+</head>
+<body>
+<div class="container">
+  <div id="view-catalog">
+    <div class="topbar">
+      <button onclick="openCatMenu()" style="background:var(--surface2);border:none;width:46px;height:46px;border-radius:12px;color:var(--text);font-size:22px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;">☰</button>
+      <div class="logo">Stroy<span>Hous</span></div>
+      <div style="width:46px;flex-shrink:0;"></div>
+    </div>
+    <input id="search-input" class="field" placeholder="🔍 Поиск товаров…" oninput="doSearch()" style="margin-bottom:14px;">
+    <div id="search-results"></div>
+    <div class="cats hidden" id="cats"></div>
+    <div id="products"><div class="loading"><div class="spinner"></div>Загрузка товаров…</div></div>
+  </div>
+  <div id="view-cats" class="hidden"><h2 class="section-title" style="margin-top:24px;">Категории</h2><div id="cats-grid"></div></div>
+  <div id="view-fav" class="hidden"><h2 class="section-title" style="margin-top:24px;">Избранное</h2><div id="fav-list"></div></div>
+  <div id="view-cart" class="hidden"><h2 class="section-title" style="margin-top:24px;">Корзина</h2><div id="cart-list"></div></div>
+  <div id="view-chat" class="hidden"></div>
+
+  <!-- Боковое меню категорий (дерево) -->
+  <div id="cat-menu-overlay" onclick="closeCatMenu()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;"></div>
+  <div id="cat-menu" style="position:fixed;top:0;left:0;bottom:0;width:300px;max-width:85vw;background:var(--bg);z-index:201;transform:translateX(-100%);transition:transform .25s;overflow-y:auto;box-shadow:2px 0 20px rgba(0,0,0,.3);">
+    <div style="padding:20px 16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;background:var(--bg);z-index:2;">
+      <span style="font-size:20px;font-weight:800;">Категории</span>
+      <button onclick="closeCatMenu()" style="background:var(--surface2);border:none;width:36px;height:36px;border-radius:50%;color:var(--text);font-size:18px;cursor:pointer;">✕</button>
+    </div>
+    <div id="cat-tree" style="padding:8px 0;"></div>
+  </div>
+  <div id="view-profile" class="hidden">
+    <div id="profile-content"></div>
+  </div>
+</div>
+
+<div class="modal" id="detail-modal"><div class="sheet" id="sheet-content"></div></div>
+
+<div class="modal" id="login-modal">
+  <div class="sheet" style="max-width:440px;">
+    <div class="sheet-body">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+        <h2 style="font-size:24px;font-weight:800;" id="login-title">Вход</h2>
+        <button onclick="closeLogin()" style="background:var(--surface2);border:none;width:40px;height:40px;border-radius:50%;color:var(--text);font-size:18px;cursor:pointer;">✕</button>
+      </div>
+      <div id="auth-tabs" style="display:flex;gap:8px;margin-bottom:20px;background:var(--surface2);padding:5px;border-radius:14px;">
+        <button id="tab-login" class="checkout-btn" style="margin:0;padding:12px;background:var(--accent);" onclick="setAuthMode('login')">Вход</button>
+        <button id="tab-reg" class="checkout-btn" style="margin:0;padding:12px;background:transparent;" onclick="setAuthMode('reg')">Регистрация</button>
+      </div>
+
+      <!-- ВХОД по паролю -->
+      <div id="step-login">
+        <input id="login-phone" class="field" type="tel" placeholder="+7 ___ ___-__-__" value="+7">
+        <input id="login-pass" class="field" type="text" placeholder="Пароль">
+        <button class="checkout-btn" id="login-btn" onclick="doLogin()">Войти</button>
+        <button onclick="showForgot()" style="width:100%;background:none;border:none;color:var(--accent);margin-top:12px;cursor:pointer;font-family:inherit;font-size:14px;">Забыли пароль?</button>
+      </div>
+
+      <!-- РЕГИСТРАЦИЯ: имя + телефон + пароль (без SMS) -->
+      <div id="step-reg-phone" class="hidden">
+        <input id="reg-name" class="field" type="text" placeholder="Ваше имя">
+        <input id="reg-phone" class="field" type="tel" placeholder="+7 ___ ___-__-__" value="+7">
+        <input id="reg-pass" class="field" type="text" placeholder="Придумайте пароль">
+        <p style="color:var(--muted);font-size:13px;margin:-6px 0 12px;">Пароль любой — цифры или буквы. Запомните его!</p>
+        <button class="checkout-btn" id="reg-send-btn" onclick="regFinish()">Зарегистрироваться</button>
+      </div>
+
+      <!-- ЗАБЫЛ ПАРОЛЬ: телефон + новый пароль (без SMS) -->
+      <div id="step-forgot-phone" class="hidden">
+        <p style="color:var(--muted);margin-bottom:10px;">Введите телефон и придумайте новый пароль</p>
+        <input id="forgot-phone" class="field" type="tel" placeholder="+7 ___ ___-__-__" value="+7">
+        <input id="forgot-pass" class="field" type="text" placeholder="Новый пароль">
+        <button class="checkout-btn" onclick="forgotFinish()">Сохранить новый пароль</button>
+        <button onclick="setAuthMode('login')" style="width:100%;background:none;border:none;color:var(--muted);margin-top:12px;cursor:pointer;font-family:inherit;font-size:14px;">← Назад ко входу</button>
+      </div>
+
+      <!-- (экран кода удалён — SMS больше нет) -->
+      <div id="step-forgot-new" class="hidden"></div>
+
+    </div>
+  </div>
+</div>
+
+<nav class="bottomnav">
+  <button class="nav-item active" data-view="catalog" onclick="switchView('catalog')"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 11l9-8 9 8v9a1 1 0 01-1 1h-5v-6h-6v6H4a1 1 0 01-1-1v-9z"/></svg>Главная</button>
+  <button class="nav-item" data-view="chat" onclick="switchView('chat')"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M2 4a2 2 0 012-2h16a2 2 0 012 2v12a2 2 0 01-2 2H7l-5 4V4z"/></svg>Чат</button>
+  <button class="nav-item" data-view="cart" onclick="switchView('cart')"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 18c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm10 0c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zM7.2 14h9.5c.7 0 1.3-.4 1.6-1l3.6-6.5L19.8 5l-3.3 6H8L4.3 2H1v2h2l3.6 7.6L5.2 15c-.3.5-.2 1.2.4 1.5.2.1.4.5 1.6.5z"/></svg>Корзина<span class="nav-badge hidden" id="cart-badge">0</span></button>
+  <button class="nav-item" data-view="fav" onclick="switchView('fav')"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 21l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.18L12 21z"/></svg>Избранное</button>
+  <button class="nav-item" data-view="profile" onclick="switchView('profile')"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 4-6 8-6s8 2 8 6"/></svg>Профиль</button>
+</nav>
+
+<script>
+  let allProducts=[], currentCat='Все', sortAsc=true;
+  let cart=JSON.parse(localStorage.getItem('sh_cart')||'{}');
+  let favorites=JSON.parse(localStorage.getItem('sh_fav')||'{}');
+  function saveCart(){localStorage.setItem('sh_cart',JSON.stringify(cart));}
+  function saveFav(){localStorage.setItem('sh_fav',JSON.stringify(favorites));}
+  let user=JSON.parse(localStorage.getItem('sh_user')||'null');
+  let pendingPhone='', genCode='', deliveryKm=null, deliveryAddr='', currentShip='pickup', ymap=null;
+
+  const SHOP={lat:55.5022, lon:37.5575, name:'StroyHous, Симферопольское шоссе 17А'};
+  const PRICE_PER_KM=30, PRICE_PER_KG=30;
+  let categories=['Все','Инструменты','Материалы','Сантехника','Отделка','Электрика'];
+  const DEFAULT_CATS=["Смеси строительные","Смеси строительные/Стяжка и кладка","Смеси строительные/Шпаклевка","Смеси строительные/Штукатурки","Смеси строительные/Плиточный клей","Общестрой","Общестрой/Блок, кирпич","Общестрой/Гипсокартон и комплектующие","Общестрой/Листовой материал","Общестрой/Нерудный материал","Общестрой/Серпянка, стеклохолст","Общестрой/Хозяйственные товары","Общестрой/Крепёж","Изоляция","Изоляция/Расходник","Изоляция/Отрезные круги","Изоляция/Ручной инструмент","Изоляция/Крепёж","Изоляция/Электроинструмент","Пиломатериалы","Металл","Металл/Арматура строительная","Металл/Сетка металлическая","Металл/Системы ограждения","Лакокрасочные материалы","Лакокрасочные материалы/Краска и эмаль","Лакокрасочные материалы/Лак и растворитель","Лакокрасочные материалы/Грунтовки и пропитки","Лакокрасочные материалы/Герметик","Лакокрасочные материалы/Клей монтажный","Электротовары","Электротовары/Кабельная продукция","Электротовары/Автоматы","Электротовары/Освещение","Инженерная сантехника","Инженерная сантехника/Краны, фитинги, вентили","Инженерная сантехника/Полипропиленовые трубы фитинги","Инженерная сантехника/Трубы","Инженерная сантехника/Гибкая подводка","Инженерная сантехника/Редукторы, фильтры, клапаны","Инженерная сантехника/Сантехнические люки","Инженерная сантехника/Коллекторы","Инженерная сантехника/Обогревательное оборудование","Отделочные материалы","Отделочные материалы/Керамогранит","Отделочные материалы/Обои на флизелиновой основе","Отделочные материалы/Подвесные потолки"];
+  function loadCategories(){
+    apiGet('/categories').then(list=>{
+      // если сервер вернул мало категорий — берём полное дерево из кода
+      if(Array.isArray(list)&&list.length>=DEFAULT_CATS.length){categories=['Все',...list];}
+      else{categories=['Все',...DEFAULT_CATS];}
+      renderCats();
+    }).catch(e=>{categories=['Все',...DEFAULT_CATS];renderCats();console.error(e);});
+  }
+  const emojiByCat={'Инструменты':'🔧','Материалы':'🧱','Сантехника':'🚿','Отделка':'🎨','Электрика':'💡'};
+
+  // адаптер: поля Supabase (in_stock) → формат сайта (inStock)
+  function adaptProduct(p){
+    return {id:String(p.id),name:p.name,categories:p.categories||[],category:(p.categories&&p.categories[0])||'',
+            description:p.description,images:p.images||[],img:(p.images&&p.images[0])||'',
+            price:p.price||0,weight:p.weight||0,inStock:p.in_stock};
+  }
+  function loadProducts(){
+    apiGet('/products').then(data=>{
+      allProducts=(data||[]).map(adaptProduct);
+      renderCats();renderProducts();
+    }).catch(e=>{document.getElementById('products').innerHTML='<div class="empty">Не удалось загрузить товары.<br>Обновите страницу.</div>';console.error(e);});
+  }
+  function renderCats(){
+    const mains=['Все'];
+    categories.forEach(c=>{if(c!=='Все'){const m=c.split('/')[0].trim();if(!mains.includes(m))mains.push(m);}});
+    document.getElementById('cats').innerHTML=mains.map(c=>`<button class="cat ${c===currentCat?'active':''}" onclick="selectCat('${c.replace(/'/g,"")}')">${emojiByCat[c]?emojiByCat[c]+' ':''}${c}</button>`).join('');
+  }
+
+  // ===== Дерево категорий (боковое меню) =====
+  function openCatMenu(){renderCatTree();document.getElementById('cat-menu-overlay').style.display='block';document.getElementById('cat-menu').style.transform='translateX(0)';}
+  function closeCatMenu(){document.getElementById('cat-menu-overlay').style.display='none';document.getElementById('cat-menu').style.transform='translateX(-100%)';}
+  function buildCatTree(){
+    // categories = массив строк, часть с "/" — подкатегории
+    const tree={};
+    categories.forEach(c=>{
+      if(c==='Все')return;
+      const parts=c.split('/');
+      const main=parts[0].trim();
+      if(!tree[main])tree[main]={subs:[],full:main};
+      if(parts.length>1)tree[main].subs.push({name:parts[1].trim(),full:c});
+    });
+    return tree;
+  }
+  function renderCatTree(){
+    const tree=buildCatTree();
+    let html='<div onclick="selectCatFromMenu(\'Все\')" style="padding:14px 20px;font-size:16px;font-weight:700;cursor:pointer;border-bottom:1px solid var(--border);">🏠 Все товары</div>';
+    Object.keys(tree).forEach((main,i)=>{
+      const t=tree[main];
+      const hasSubs=t.subs.length>0;
+      html+=`<div class="cat-tree-item">
+        <div onclick="${hasSubs?`toggleCatSub(${i})`:`selectCatFromMenu('${t.full.replace(/'/g,"")}')`}" style="padding:14px 20px;font-size:16px;font-weight:600;cursor:pointer;display:flex;justify-content:space-between;align-items:center;">
+          <span onclick="event.stopPropagation();selectCatFromMenu('${t.full.replace(/'/g,"")}')">${main}</span>
+          ${hasSubs?`<span id="arr-${i}" style="font-size:13px;color:var(--muted);">▼</span>`:''}
+        </div>
+        ${hasSubs?`<div id="sub-${i}" style="display:none;background:var(--surface);">${t.subs.map(s=>`<div onclick="selectCatFromMenu('${s.full.replace(/'/g,"")}')" style="padding:11px 20px 11px 36px;font-size:14px;color:var(--text);cursor:pointer;border-top:1px solid var(--border);">${s.name}</div>`).join('')}</div>`:''}
+      </div>`;
+    });
+    document.getElementById('cat-tree').innerHTML=html;
+  }
+  function toggleCatSub(i){
+    const sub=document.getElementById('sub-'+i);const arr=document.getElementById('arr-'+i);
+    if(sub.style.display==='none'){sub.style.display='block';if(arr)arr.textContent='▲';}
+    else{sub.style.display='none';if(arr)arr.textContent='▼';}
+  }
+  function selectCatFromMenu(cat){
+    currentCat=cat;closeCatMenu();switchView('catalog');renderCats();renderProducts();
+    window.scrollTo(0,0);
+  }
+  function selectCat(c){currentCat=c;renderCats();renderProducts();}
+  function getPhotos(p){
+    let arr=[];
+    if(Array.isArray(p.images))arr=p.images.filter(u=>u&&u.trim());
+    else if(p.img)arr=[p.img];
+    return arr;
+  }
+  function imgOrEmoji(p){const ph=getPhotos(p);if(ph.length)return `<img src="${ph[0]}" alt="">`;return p.emoji||emojiByCat[p.category]||'📦';}
+  function emojiFor(p){return p.emoji||emojiByCat[p.category]||'📦';}
+  function fmt(n){return (Math.round(n)||0).toLocaleString('ru-RU');}
+  function weightText(p){return p.weight?`Вес: ${p.weight} кг`:'';}
+  function renderProducts(){
+    let list=allProducts.filter(p=>{
+      if(currentCat==='Все')return true;
+      const cats=p.categories||[];
+      return cats.includes(currentCat)||p.category===currentCat||cats.some(c=>c.split('/')[0].trim()===currentCat)||cats.some(c=>c.indexOf(currentCat+'/')===0);
+    });
+    list.sort((a,b)=>sortAsc?(a.price||0)-(b.price||0):(b.price||0)-(a.price||0));
+    const el=document.getElementById('products');
+    el.innerHTML=list.length?'<div class="grid">'+list.map(cardHTML).join('')+'</div>':'<div class="empty">В этой категории пока нет товаров</div>';
+  }
+  function cardHTML(p){
+    const fav=favorites[p.id]?'active':'';
+    const w=weightText(p)?`<div class="weight">${weightText(p)}</div>`:'';
+    return `<div class="card" onclick="openDetail('${p.id}')"><div class="card-img"><button class="fav ${fav}" onclick="event.stopPropagation();toggleFav('${p.id}')">♥</button>${imgOrEmoji(p)}</div><div class="brand">${p.category||''}</div><div class="name">${p.name||''}</div>${w}<div class="price-row"><div><div class="price">${fmt(p.price)} ₽</div></div><button class="add-btn" onclick="event.stopPropagation();addToCart('${p.id}')">+</button></div></div>`;
+  }
+  function openDetail(id){
+    const p=allProducts.find(x=>x.id===id);if(!p)return;
+    const w=p.weight?`<div class="delivery-row"><div class="left"><span class="ico">⚖️</span> Вес</div><span>${p.weight} кг</span></div>`:'';
+    document.getElementById('sheet-content').innerHTML=`<div class="sheet-img-wrap">${galleryHTML(p)}</div><div class="sheet-body"><div class="sheet-brand">${p.category||''}</div><div class="sheet-name">${p.name||''}</div><div style="display:flex;align-items:center;gap:14px;"><span class="sheet-price">${fmt(p.price)} ₽</span></div><div class="sheet-stock"><span class="dot"></span> В наличии${p.inStock!=null?': '+p.inStock+' шт':''}</div><div class="divider"></div><div class="sheet-h">Описание</div><div class="sheet-desc">${p.description||'Описание появится позже.'}</div><div class="divider"></div><div class="sheet-h">Доставка и оплата</div>${w}<div class="delivery-row"><div class="left"><span class="ico">🏪</span> Самовывоз</div><span class="free">Бесплатно</span></div><div class="delivery-row"><div class="left"><span class="ico">🚚</span> Курьером</div><span style="color:var(--accent);">Обсуждается</span></div><p style="color:var(--muted);font-size:13px;line-height:1.6;margin-top:8px;">💬 Оплата будет после оформления заказа. Менеджер принимает заказ, после этого можно оплатить онлайн или наличными.</p>
+      <div id="add-area">
+        <button class="checkout-btn" style="margin-top:20px;" onclick="showQtyPicker('${p.id}')">🛒 Добавить в корзину</button>
+      </div></div>`;
+    window._detailQty=1;
+    galleryIndex=0;
+    document.getElementById('detail-modal').classList.add('open');
+  }
+  let galleryIndex=0, galleryPhotos=[];
+  function galleryHTML(p){
+    const ph=getPhotos(p);
+    galleryPhotos=ph;
+    if(!ph.length){
+      return `<div class="sheet-img"><button class="sheet-back" onclick="closeDetail()">←</button>${p.emoji||emojiByCat[p.category]||'📦'}</div>`;
+    }
+    const slides=ph.map(u=>`<div class="gallery-slide"><img src="${u}" alt=""></div>`).join('');
+    const dots=ph.length>1?`<div class="gallery-dots">${ph.map((_,i)=>`<span class="${i===0?'on':''}" onclick="goSlide(${i})"></span>`).join('')}</div>`:'';
+    const arrows=ph.length>1?`<button class="gallery-arrow left" onclick="moveSlide(-1)">‹</button><button class="gallery-arrow right" onclick="moveSlide(1)">›</button>`:'';
+    return `<div class="gallery"><button class="sheet-back" onclick="closeDetail()" style="z-index:4;">←</button><div class="gallery-track" id="gallery-track">${slides}</div>${arrows}${dots}</div>`;
+  }
+  function goSlide(i){
+    if(!galleryPhotos.length)return;
+    galleryIndex=(i+galleryPhotos.length)%galleryPhotos.length;
+    const track=document.getElementById('gallery-track');
+    if(track)track.style.transform=`translateX(-${galleryIndex*100}%)`;
+    document.querySelectorAll('.gallery-dots span').forEach((d,idx)=>d.classList.toggle('on',idx===galleryIndex));
+  }
+  function moveSlide(d){goSlide(galleryIndex+d);}
+  function closeDetail(){document.getElementById('detail-modal').classList.remove('open');}
+  document.getElementById('detail-modal').addEventListener('click',e=>{if(e.target.id==='detail-modal')closeDetail();});
+  function toggleFav(id){if(favorites[id])delete favorites[id];else favorites[id]=true;saveFav();renderProducts();if(!document.getElementById('view-fav').classList.contains('hidden'))renderFav();}
+  function renderFav(){const list=allProducts.filter(p=>favorites[p.id]);const el=document.getElementById('fav-list');el.innerHTML=list.length?'<div class="grid">'+list.map(cardHTML).join('')+'</div>':'<div class="empty">Вы пока ничего не добавили в избранное ♥</div>';}
+  function addToCart(id){cart[id]=(cart[id]||0)+1;saveCart();updateBadge();flash();}
+  function showQtyPicker(id){
+    window._detailQty=1;
+    document.getElementById('add-area').innerHTML=`
+      <div style="display:flex;align-items:center;justify-content:center;gap:16px;margin-top:20px;">
+        <button onclick="detailQty(-1)" style="width:48px;height:48px;border-radius:50%;border:2px solid var(--accent);background:transparent;color:var(--accent);font-size:26px;cursor:pointer;flex-shrink:0;">−</button>
+        <input id="detail-qty-input" type="number" min="1" value="1" onchange="detailQtySet(this.value)" oninput="detailQtySet(this.value)" style="width:80px;height:54px;text-align:center;font-size:24px;font-weight:800;border:2px solid var(--border);border-radius:12px;font-family:inherit;">
+        <button onclick="detailQty(1)" style="width:48px;height:48px;border-radius:50%;border:2px solid var(--accent);background:transparent;color:var(--accent);font-size:26px;cursor:pointer;flex-shrink:0;">+</button>
+      </div>
+      <button class="checkout-btn" style="margin-top:16px;" onclick="addToCartQty('${id}')">✅ Добавить в корзину</button>`;
+  }
+  function detailQty(d){
+    window._detailQty=Math.max(1,(window._detailQty||1)+d);
+    const el=document.getElementById('detail-qty-input');if(el)el.value=window._detailQty;
+  }
+  function detailQtySet(v){window._detailQty=Math.max(1,parseInt(v)||1);}
+  function addToCartQty(id){
+    const q=window._detailQty||1;
+    cart[id]=(cart[id]||0)+q;
+    saveCart();updateBadge();flash();
+    closeDetail(); // просто закрываем товар, корзину НЕ открываем
+  }
+  function changeQty(id,d){cart[id]=(cart[id]||0)+d;if(cart[id]<=0)delete cart[id];saveCart();updateBadge();renderCart();}
+  function updateBadge(){const n=Object.values(cart).reduce((a,b)=>a+b,0);const b=document.getElementById('cart-badge');if(n>0){b.textContent=n;b.classList.remove('hidden');}else b.classList.add('hidden');}
+  function flash(){const b=document.getElementById('cart-badge');b.style.transform='scale(1.4)';setTimeout(()=>b.style.transform='scale(1)',150);}
+  function cartSum(){return Object.entries(cart).reduce((s,[id,q])=>{const p=allProducts.find(x=>x.id===id);return s+(p?p.price*q:0);},0);}
+  function cartWeight(){return Object.entries(cart).reduce((s,[id,q])=>{const p=allProducts.find(x=>x.id===id);return s+(p&&p.weight?p.weight*q:0);},0);}
+  function calcDelivery(){
+    const weight=cartWeight();
+    if(deliveryKm===null)return null;
+    const km=Math.ceil(deliveryKm);
+    const kg=Math.ceil(weight);
+    const price=km*PRICE_PER_KM + kg*PRICE_PER_KG;
+    return{price,free:false,km,kg,weight};
+  }
+  function renderCart(){
+    const el=document.getElementById('cart-list');const ids=Object.keys(cart);
+    if(!ids.length){el.innerHTML='<div class="empty">Корзина пуста 🛒<br>Добавьте товары из каталога</div>';return;}
+    let html=ids.map(id=>{const p=allProducts.find(x=>x.id===id);if(!p)return'';const w=p.weight?`<div class="w">${p.weight} кг × ${cart[id]} = ${(p.weight*cart[id]).toFixed(1)} кг</div>`:'';return `<div class="cart-item"><div class="cart-emoji">${imgOrEmoji(p)}</div><div class="cart-info"><div class="n">${p.name}</div><div class="p">${fmt(p.price)} ₽</div>${w}</div><div class="qty"><button onclick="changeQty('${id}',-1)">−</button><span>${cart[id]}</span><button onclick="changeQty('${id}',1)">+</button></div></div>`;}).join('');
+    html+=`<div class="sheet-h" style="margin-top:8px;">Способ получения</div><div class="ship-options"><label class="ship-opt sel" data-ship="pickup"><span class="l">🏪 Самовывоз</span><span class="free">Бесплатно</span></label><label class="ship-opt" data-ship="courier"><span class="l">🚚 Курьером</span><span id="courier-price" style="color:var(--accent);">Обсуждается</span></label></div>`;
+    html+=`<div id="courier-block" class="hidden"><div class="sheet-h">📍 Адрес доставки</div><input id="addr-input" class="field" placeholder="Город, улица, дом, квартира" onkeydown="if(event.key==='Enter')findAddress()"><button class="checkout-btn" style="background:var(--surface2);margin-bottom:12px;" onclick="findAddress()">🔍 Найти адрес на карте</button><p style="color:var(--muted);font-size:13px;margin-bottom:10px;">Напишите адрес и нажмите «Найти» — карта сама поставит точку. Или нажмите место на карте вручную.</p><div id="map"><div class="map-fallback">Загрузка карты…</div></div><div id="addr-shown" style="margin-top:14px;"></div><div id="delivery-info"></div></div>`;
+    html+=`<div class="cart-total" id="cart-total"></div><button class="checkout-btn" id="checkout-btn" onclick="checkout()">Оформить заказ</button>`;
+    el.innerHTML=html;bindShipOptions();updateTotals();
+  }
+  function bindShipOptions(){
+    document.querySelectorAll('.ship-opt').forEach(opt=>{opt.addEventListener('click',()=>{document.querySelectorAll('.ship-opt').forEach(o=>o.classList.remove('sel'));opt.classList.add('sel');currentShip=opt.dataset.ship;const cb=document.getElementById('courier-block');cb.classList.toggle('hidden',currentShip!=='courier');if(currentShip==='courier')setTimeout(initShopMap,300);updateTotals();});});
+  }
+  function updateTotals(){
+    const sum=cartSum();
+    const tot=document.getElementById('cart-total');
+    let deliveryLabel;
+    if(currentShip==='courier'){deliveryLabel='<span style="color:var(--accent);">Менеджер свяжется</span>';}
+    else{deliveryLabel='<span class="free">Бесплатно</span>';}
+    if(tot)tot.innerHTML=`<div class="ct-row"><span>Товары (${Object.values(cart).reduce((a,b)=>a+b,0)} шт)</span><span>${fmt(sum)} ₽</span></div><div class="ct-row"><span>Доставка</span><span>${deliveryLabel}</span></div><div class="ct-row big"><span>Итого за товары</span><span>${fmt(sum)} ₽</span></div>${currentShip==='courier'?'<p style="color:var(--muted);font-size:13px;margin-top:10px;">💬 Стоимость доставки менеджер обсудит с вами после оформления</p>':''}`;
+    const cb=document.getElementById('checkout-btn');if(cb)cb.textContent='Оформить заказ';
+  }
+  let deliveryPlacemark=null, routeLine=null;
+  function initShopMap(){
+    const mapEl=document.getElementById('map');
+    if(!mapEl)return;
+    if(typeof ymaps==='undefined'){
+      mapEl.innerHTML='<div class="map-fallback">Карта недоступна. Введите адрес и нажмите «Рассчитать».</div>';
+      return;
+    }
+    ymaps.ready(function(){
+      try{
+        if(ymap){try{ymap.destroy();}catch(e){}ymap=null;}
+        deliveryPlacemark=null;routeLine=null;
+        mapEl.innerHTML='';
+        ymap=new ymaps.Map(mapEl,{center:[SHOP.lat,SHOP.lon],zoom:11,controls:['zoomControl']});
+        ymap.geoObjects.add(new ymaps.Placemark([SHOP.lat,SHOP.lon],{balloonContent:'🏪 Магазин StroyHous, Симферопольское шоссе 17А',hintContent:'Магазин StroyHous'},{preset:'islands#redShopIcon'}));
+        // подсказка сверху
+        const hint=document.createElement('div');
+        hint.innerHTML='👆 Нажмите на карте, где нужна доставка';
+        hint.style.cssText='position:absolute;top:10px;left:50%;transform:translateX(-50%);background:var(--accent);color:#fff;padding:8px 16px;border-radius:20px;font-size:13px;font-weight:600;z-index:5;box-shadow:0 2px 8px rgba(0,0,0,.3);pointer-events:none;';
+        mapEl.style.position='relative';
+        mapEl.appendChild(hint);
+        // клик по карте = точка доставки
+        ymap.events.add('click',function(e){
+          const coords=e.get('coords');
+          setDeliveryPoint(coords);
+        });
+      }catch(err){
+        console.error('Ошибка карты:',err);
+        mapEl.innerHTML='<div class="map-fallback">Не удалось загрузить карту. Введите адрес и нажмите «Рассчитать».</div>';
+      }
+    });
+  }
+
+  function setDeliveryPoint(coords){
+    if(!ymap)return;
+    // ставим/двигаем метку доставки
+    if(deliveryPlacemark){ymap.geoObjects.remove(deliveryPlacemark);}
+    deliveryPlacemark=new ymaps.Placemark(coords,{balloonContent:'📍 Сюда доставка',hintContent:'Адрес доставки'},{preset:'islands#blueHomeIcon',draggable:true});
+    ymap.geoObjects.add(deliveryPlacemark);
+    // линия магазин→точка
+    if(routeLine){ymap.geoObjects.remove(routeLine);}
+    routeLine=new ymaps.Polyline([[SHOP.lat,SHOP.lon],coords],{},{strokeColor:'#f97316',strokeWidth:3});
+    ymap.geoObjects.add(routeLine);
+    // тащим метку — пересчитываем
+    deliveryPlacemark.events.add('dragend',function(){setDeliveryPoint(deliveryPlacemark.geometry.getCoordinates());});
+    // расстояние и расчёт (без геокодера)
+    const dist=geoDistance(SHOP.lat,SHOP.lon,coords[0],coords[1]);
+    deliveryKm=dist;
+    showDeliveryCalc(dist);
+  }
+
+  function showDeliveryCalc(dist){
+    const info=document.getElementById('delivery-info');
+    if(info){
+      info.innerHTML=`<div class="info-card" style="margin-top:12px;"><p style="line-height:1.6;">✅ Адрес отмечен на карте<br><span style="color:var(--muted);font-size:14px;">Менеджер свяжется и обсудит стоимость и время доставки</span></p></div>`;
+    }
+    updateTotals();
+  }
+  function geoDistance(lat1,lon1,lat2,lon2){
+    // формула гаверсинуса, км — не зависит от API
+    const R=6371;
+    const dLat=(lat2-lat1)*Math.PI/180;
+    const dLon=(lon2-lon1)*Math.PI/180;
+    const a=Math.sin(dLat/2)**2+Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)**2;
+    return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+  }
+  function findAddress(){
+    const addr=document.getElementById('addr-input').value.trim();
+    if(!addr){alert('Введите адрес');return;}
+    const info=document.getElementById('delivery-info');
+    if(info)info.innerHTML='<div class="loading" style="padding:16px;"><div class="spinner"></div>Ищем адрес…</div>';
+    // Nominatim (OpenStreetMap) — бесплатный геокодер без ключа
+    const url=`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(addr)}&limit=1&accept-language=ru`;
+    fetch(url,{headers:{'Accept':'application/json'}}).then(r=>r.json()).then(data=>{
+      if(!data||!data.length){if(info)info.innerHTML='<div class="info-card"><p style="color:var(--red);">Адрес не найден. Уточните (город, улица, дом) или нажмите точку на карте.</p></div>';return;}
+      const coords=[parseFloat(data[0].lat),parseFloat(data[0].lon)];
+      deliveryAddr=data[0].display_name||addr;
+      const sh=document.getElementById('addr-shown');if(sh)sh.innerHTML=`<div class="info-card" style="padding:14px;"><div style="color:var(--muted);font-size:13px;">Найдено:</div><div style="font-weight:600;font-size:14px;margin-top:2px;">📍 ${deliveryAddr}</div></div>`;
+      if(ymap)ymap.setCenter(coords,15);
+      setDeliveryPoint(coords);
+    }).catch(e=>{
+      console.error('Nominatim:',e);
+      if(info)info.innerHTML='<div class="info-card"><p style="color:var(--muted);">Поиск временно недоступен. Нажмите нужную точку прямо на карте.</p></div>';
+    });
+  }
+  function manualKm(v){deliveryKm=parseFloat(v)||null;updateTotals();}
+  function doSearch(){
+    const q=document.getElementById('search-input').value.toLowerCase().trim();const el=document.getElementById('search-results');
+    if(!q){el.innerHTML='';return;}
+    const list=allProducts.filter(p=>(p.name||'').toLowerCase().includes(q)||(p.category||'').toLowerCase().includes(q));
+    el.innerHTML=list.length?'<div class="grid">'+list.map(cardHTML).join('')+'</div>':'<div class="empty">Ничего не найдено</div>';
+  }
+  function checkout(){
+    if(!Object.keys(cart).length){alert('Корзина пуста');return;}
+    if(!user){alert('Сначала войдите по номеру телефона');openLogin();return;}
+    let addrText='';
+    if(currentShip==='courier'){
+      addrText=document.getElementById('addr-input')?document.getElementById('addr-input').value.trim():'';
+      if(!addrText){alert('Напишите адрес доставки');return;}
+    }
+    const sum=cartSum();
+    const shipName={pickup:'Самовывоз',courier:'Курьером'}[currentShip];
+    const items=Object.entries(cart).map(([id,q])=>{const p=allProducts.find(x=>x.id===id);return{name:p?p.name:'',price:p?p.price:0,qty:q,emoji:p?emojiFor(p):'📦'};});
+    const order={
+      name:user.name||'',phone:user.phone,items:items,
+      delivery:shipName,address:addrText,
+      total:sum,status:'Новый',status_order:-1,paid:false,paid_cash:false
+    };
+    const btn=document.getElementById('checkout-btn');
+    if(btn){btn.disabled=true;btn.textContent='Оформляем…';}
+    apiSend('/orders','POST',{name:order.name,phone:order.phone,items:order.items,total:order.total,delivery:order.delivery,address:order.address}).then(()=>{
+      alert(`Заказ оформлен! ✅\n\n${user.name}, ${user.phone}\nПолучение: ${shipName}${currentShip==='courier'?', '+addrText:''}\nСумма товаров: ${fmt(sum)} ₽\n\n💬 Менеджер проверит заказ, свяжется с вами и подтвердит. После подтверждения вы сможете оплатить.`);
+      cart={};saveCart();deliveryKm=null;updateBadge();renderCart();
+    }).catch(e=>{console.error(e);alert('Не удалось оформить заказ. Попробуйте ещё раз.');if(btn){btn.disabled=false;updateTotals();}});
+  }
+  function openLogin(){setAuthMode('login');document.getElementById('login-modal').classList.add('open');}
+  function closeLogin(){document.getElementById('login-modal').classList.remove('open');}
+  document.getElementById('login-modal').addEventListener('click',e=>{if(e.target.id==='login-modal')closeLogin();});
+
+  let regPhone='', forgotPhone='';
+  // показать нужный экран, скрыть остальные
+  function showAuthStep(id){
+    ['step-login','step-reg-phone','step-forgot-phone','step-forgot-new'].forEach(s=>{
+      const el=document.getElementById(s);
+      if(el)el.classList.toggle('hidden',s!==id);
+    });
+  }
+  function setAuthMode(mode){
+    const isReg=mode==='reg';
+    document.getElementById('login-title').textContent=isReg?'Регистрация':'Вход';
+    document.getElementById('tab-login').style.background=isReg?'transparent':'var(--accent)';
+    document.getElementById('tab-reg').style.background=isReg?'var(--accent)':'transparent';
+    document.getElementById('auth-tabs').classList.remove('hidden');
+    showAuthStep(isReg?'step-reg-phone':'step-login');
+  }
+
+  // ===== ВХОД ПО ПАРОЛЮ =====
+  function doLogin(){
+    const phone=document.getElementById('login-phone').value.trim();
+    const pass=document.getElementById('login-pass').value.trim();
+    if(phone.replace(/\D/g,'').length<11){alert('Введите корректный номер телефона');return;}
+    if(!pass){alert('Введите пароль');return;}
+    const btn=document.getElementById('login-btn');btn.disabled=true;btn.textContent='Входим…';
+    apiSend('/login','POST',{phone:phone.replace(/\D/g,''),password:pass}).then(res=>{
+      btn.disabled=false;btn.textContent='Войти';
+      user={name:res.user.name||'',phone:res.user.phone};
+      localStorage.setItem('sh_user',JSON.stringify(user));
+      closeLogin();updateLoginChip();updateProfile();
+      alert('Вы вошли! ✅\n'+(user.name||user.phone));
+    }).catch(e=>{
+      btn.disabled=false;btn.textContent='Войти';
+      const msg=String(e.message||'');
+      if(msg.indexOf('не зарегистрирован')>=0||msg.indexOf('404')>=0)alert('Этот номер не зарегистрирован.\nНажмите «Регистрация».');
+      else alert('Неверный телефон или пароль');
+    });
+  }
+
+  // ===== РЕГИСТРАЦИЯ (без SMS) =====
+  function regFinish(){
+    const name=document.getElementById('reg-name').value.trim();
+    const phone=document.getElementById('reg-phone').value.trim();
+    const pass=document.getElementById('reg-pass').value.trim();
+    if(!name){alert('Введите ваше имя');return;}
+    if(phone.replace(/\D/g,'').length<11){alert('Введите корректный номер телефона');return;}
+    if(!pass){alert('Придумайте пароль');return;}
+    const ph=phone.replace(/\D/g,'');
+    const btn=document.getElementById('reg-send-btn');btn.disabled=true;btn.textContent='Регистрируем…';
+    apiSend('/register','POST',{phone:ph,name:name,password:pass}).then(res=>{
+      btn.disabled=false;btn.textContent='Зарегистрироваться';
+      user={name:name,phone:ph};
+      localStorage.setItem('sh_user',JSON.stringify(user));
+      closeLogin();updateLoginChip();updateProfile();
+      alert('Регистрация завершена! ✅\nТеперь вы можете входить по телефону и паролю.');
+    }).catch(e=>{btn.disabled=false;btn.textContent='Зарегистрироваться';alert('Ошибка регистрации. Возможно, номер уже зарегистрирован.');console.error(e);});
+  }
+
+  // ===== ЗАБЫЛ ПАРОЛЬ (без SMS — просто новый пароль по номеру) =====
+  function showForgot(){document.getElementById('auth-tabs').classList.add('hidden');document.getElementById('login-title').textContent='Восстановление';showAuthStep('step-forgot-phone');}
+  function forgotFinish(){
+    const phone=document.getElementById('forgot-phone').value.trim();
+    const pass=document.getElementById('forgot-pass').value.trim();
+    if(phone.replace(/\D/g,'').length<11){alert('Введите корректный номер');return;}
+    if(!pass){alert('Придумайте новый пароль');return;}
+    forgotPhone=phone.replace(/\D/g,'');
+    apiSend('/reset-password','POST',{phone:forgotPhone,password:pass}).then(()=>{
+      alert('Пароль изменён! ✅\nТеперь войдите с новым паролем.');
+      setAuthMode('login');
+      document.getElementById('login-phone').value=phone;
+    }).catch(e=>{const msg=String(e.message||'');if(msg.indexOf('404')>=0||msg.indexOf('не зарегист')>=0)alert('Этот номер не зарегистрирован');else alert('Ошибка');console.error(e);});
+  }
+  let pendingName='';
+  function logout(){user=null;localStorage.removeItem('sh_user');updateLoginChip();updateProfile();}
+  function updateLoginChip(){
+    const chip=document.getElementById('login-chip');
+    if(!chip)return;
+    if(user){chip.textContent='👤 '+(user.name||user.phone);chip.classList.add('logged');chip.onclick=()=>switchView('profile');}
+    else{chip.textContent='👤 Войти';chip.classList.remove('logged');chip.onclick=openLogin;}
+  }
+  const STATUS_STEPS=['Новый','Оплата','Сборка','Готов к выдаче'];
+  const STATUS_DELIVERY=['Новый','Оплата','Сборка','Едет по адресу','Доставлен'];
+  function updateProfile(){
+    updateLoginChip();
+    const el=document.getElementById('profile-content');
+    if(!user){
+      el.innerHTML=`<div class="profile-hero"><div class="ava">👤</div><h2 style="font-size:24px;font-weight:800;margin-bottom:8px;">Вход в профиль</h2><p style="color:var(--muted);margin-bottom:24px;">Войдите, чтобы делать заказы<br>и отслеживать их статус</p><button class="checkout-btn" style="max-width:280px;margin:0 auto;" onclick="openLogin()">Войти по номеру</button></div>`;
+      return;
+    }
+    el.innerHTML=`<div style="padding-top:24px;"><div style="display:flex;align-items:center;gap:16px;margin-bottom:24px;"><div class="ava" style="margin:0;">👤</div><div><div style="font-size:22px;font-weight:800;">${user.name||''}</div><div style="color:var(--muted);">${user.phone}</div></div></div><button class="checkout-btn" onclick="showMyOrders()">📦 Мои заказы</button><button class="checkout-btn" style="background:var(--surface2);margin-top:10px;" onclick="openEditProfile()">✏️ Редактировать профиль</button><button class="checkout-btn" style="background:var(--surface2);margin-top:10px;" onclick="logout()">Выйти</button><div id="my-orders" style="margin-top:20px;"></div></div>`;
+  }
+  function openEditProfile(){
+    const newName=prompt('Ваше имя:',user.name||'');
+    if(newName===null)return; // отмена
+    const name=newName.trim();
+    if(!name){alert('Имя не может быть пустым');return;}
+    apiSend('/user/'+user.phone.replace(/\D/g,''),'PUT',{name:name}).then(()=>{
+      user.name=name;localStorage.setItem('sh_user',JSON.stringify(user));
+      updateProfile();
+      alert('Профиль обновлён ✅');
+    }).catch(e=>{alert('Не удалось сохранить');console.error(e);});
+  }
+  function showMyOrders(){
+    const box=document.getElementById('my-orders');if(!box||!user)return;
+    box.innerHTML='<div class="loading" style="padding:30px;"><div class="spinner"></div>Загрузка заказов…</div>';
+    apiGet('/orders?phone='+encodeURIComponent(user.phone)).then(data=>{
+      let orders=data||[];
+      if(!orders.length){box.innerHTML='<div class="empty" style="padding:30px;">У вас пока нет заказов</div>';return;}
+      box.innerHTML=orders.map(o=>{
+        const isDelivery=(o.delivery&&(o.delivery.indexOf('урьер')>=0||o.delivery.indexOf('оставка')>=0))||(o.address&&o.address.length>0);
+        const steps=isDelivery?STATUS_DELIVERY:STATUS_STEPS;
+        const step=typeof o.status_order==='number'?o.status_order:-1;
+        const dt=o.created_at?new Date(o.created_at).toLocaleString('ru-RU',{day:'numeric',month:'long',hour:'2-digit',minute:'2-digit'}):'';
+        const itemsList=(o.items||[]).map(it=>`${it.emoji||'📦'} ${it.name} × ${it.qty}`).join('<br>');
+        let statusBlock='';
+        if(step===-1){
+          statusBlock=`<div style="background:rgba(59,130,246,.15);border-radius:12px;padding:14px;text-align:center;"><div style="font-size:15px;font-weight:700;color:#60a5fa;">🕓 Новый заказ</div><div style="color:var(--muted);font-size:13px;margin-top:4px;">Менеджер проверяет и скоро свяжется с вами</div></div>`;
+        } else {
+          statusBlock=`<div style="display:flex;align-items:flex-start;">`+steps.map((s,i)=>`<div style="flex:1;text-align:center;"><div style="width:24px;height:24px;border-radius:50%;margin:0 auto 4px;background:${i<=step?'var(--accent)':'var(--surface2)'};color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;">${i<=step?'✓':i+1}</div><div style="font-size:10px;color:${i<=step?'var(--accent)':'var(--muted)'};">${s}</div></div>`).join('<div style="flex:0.3;height:2px;background:var(--border);margin-top:11px;"></div>')+`</div>`;
+        }
+        let payBlock='';
+        const lastStep=steps.length-1;
+        if(o.paid){
+          payBlock=`<div style="margin-top:14px;text-align:center;color:var(--green);font-weight:700;">✅ Оплачено онлайн</div>`;
+        } else if(o.pay_type==='cash'||o.paid_cash){
+          if(step>=lastStep){
+            payBlock=`<div style="margin-top:14px;text-align:center;color:var(--green);font-weight:700;">✅ Оплачено наличными</div>`;
+          } else {
+            payBlock=`<div style="margin-top:14px;text-align:center;color:var(--muted);font-size:14px;">💵 Оплата наличными при получении</div>`;
+          }
+        } else if(step===0){
+          payBlock=`<button class="checkout-btn" style="margin-top:14px;" onclick="payOrder('${o.id}')">💳 Оплатить картой — ${fmt(o.total)} ₽</button>`;
+        }
+        // строка доставки с ценой
+        const delivCost=o.delivery_cost||0;
+        const delivLine=isDelivery?`🚚 ${o.address||''}${delivCost?' · доставка '+fmt(delivCost)+' ₽':''}`:'🏪 Самовывоз';
+        return `<div class="info-card" style="margin-bottom:12px;"><div style="display:flex;justify-content:space-between;margin-bottom:10px;"><span style="color:var(--muted);font-size:13px;">${dt}</span><span class="price">${fmt(o.total)} ₽</span></div><div style="color:var(--text);line-height:1.6;margin-bottom:14px;">${itemsList}</div><div style="color:var(--muted);font-size:13px;margin-bottom:14px;">${delivLine}</div>${statusBlock}${payBlock}</div>`;
+      }).join('');
+    }).catch(e=>{console.error(e);box.innerHTML='<div class="empty" style="padding:30px;">Не удалось загрузить заказы</div>';});
+  }
+  function payOrder(id){
+    if(!confirm('Перейти к оплате картой через ЮKassa?'))return;
+    apiSend('/pay/create','POST',{orderId:id}).then(res=>{
+      if(res.url){
+        // переходим на страницу оплаты ЮKassa
+        window.location.href=res.url;
+      }else{
+        alert('Не удалось создать платёж');
+      }
+    }).catch(e=>{
+      console.error(e);
+      alert('Оплата временно недоступна. Свяжитесь с менеджером.');
+    });
+  }
+  function switchView(v){
+    ['catalog','cats','cart','fav','chat','profile'].forEach(n=>{const el=document.getElementById('view-'+n);if(el)el.classList.toggle('hidden',n!==v);});
+    document.querySelectorAll('.nav-item').forEach(b=>b.classList.toggle('active',b.dataset.view===v));
+    if(v==='cart')renderCart();if(v==='fav')renderFav();if(v==='profile')updateProfile();if(v==='cats')renderCatsGrid();if(v==='chat')openChat();
+    window.scrollTo(0,0);
+  }
+  // ===== ЭКРАН КАТЕГОРИЙ =====
+  function renderCatsGrid(){
+    const box=document.getElementById('cats-grid');if(!box)return;
+    const icons={'Инструменты':'🔧','Материалы':'🧱','Сантехника':'🚿','Отделка':'🎨','Электрика':'💡'};
+    const cats=categories.filter(c=>c!=='Все');
+    box.innerHTML='<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">'+cats.map(c=>
+      `<div onclick="selectCatFromGrid('${c.replace(/'/g,"")}')" style="background:var(--surface2);border-radius:16px;padding:24px 16px;text-align:center;cursor:pointer;"><div style="font-size:40px;margin-bottom:8px;">${icons[c]||'📦'}</div><div style="font-weight:700;">${c}</div></div>`
+    ).join('')+'</div>';
+  }
+  function selectCatFromGrid(cat){
+    currentCat=cat;switchView('catalog');
+    setTimeout(()=>{renderCats();renderProducts();},50);
+  }
+
+  // ===== ЧАТ С АДМИНОМ =====
+  const MANAGER_PHONE='+7 925 008 77 88';
+  let chatTimer=null;
+  function openChat(){
+    const box=document.getElementById('view-chat');if(!box)return;
+    if(!user){box.innerHTML='<div style="padding:40px 20px;text-align:center;"><div style="font-size:48px;margin-bottom:16px;">💬</div><h2 style="margin-bottom:10px;">Чат с менеджером</h2><p style="color:var(--muted);margin-bottom:20px;">Войдите, чтобы написать менеджеру</p><button class="checkout-btn" onclick="openLogin()">Войти</button></div>';return;}
+    box.innerHTML=`
+      <div style="position:sticky;top:0;background:var(--bg);padding:16px 0;border-bottom:1px solid var(--border);z-index:5;">
+        <div style="font-weight:800;font-size:18px;">💬 Менеджер StroyHous</div>
+        <a href="tel:${MANAGER_PHONE.replace(/\s/g,'')}" style="color:var(--accent);font-size:14px;text-decoration:none;">📞 ${MANAGER_PHONE}</a>
+      </div>
+      <div id="chat-messages" style="padding:16px 0 90px;min-height:300px;"><div class="loading"><div class="spinner"></div></div></div>
+      <div style="position:fixed;left:0;right:0;bottom:84px;background:var(--bg);padding:10px 16px;display:flex;gap:8px;align-items:center;border-top:1px solid var(--border);max-width:600px;margin:0 auto;z-index:50;">
+        <label style="cursor:pointer;font-size:24px;flex-shrink:0;">📎<input type="file" accept="image/*" style="display:none;" onchange="sendChatPhoto(this)"></label>
+        <input id="chat-input" class="field" style="margin:0;flex:1;" placeholder="Сообщение…" onkeydown="if(event.key==='Enter')sendChatMsg()">
+        <button onclick="sendChatMsg()" style="flex-shrink:0;background:var(--accent);color:#fff;border:none;width:44px;height:44px;border-radius:50%;font-size:18px;cursor:pointer;">➤</button>
+      </div>`;
+    loadChatMessages();
+    if(chatTimer)clearInterval(chatTimer);
+    chatTimer=setInterval(()=>{if(!document.getElementById('view-chat').classList.contains('hidden'))loadChatMessages(true);},5000);
+  }
+  function loadChatMessages(silent){
+    apiGet('/messages/'+user.phone.replace(/\D/g,'')).then(msgs=>{
+      const box=document.getElementById('chat-messages');if(!box)return;
+      if(!msgs.length){box.innerHTML='<div style="text-align:center;color:var(--muted);padding:40px 0;">Напишите первое сообщение менеджеру 👋</div>';return;}
+      box.innerHTML=msgs.map(m=>{
+        const mine=m.sender==='client';
+        const img=m.image?`<img src="${m.image.indexOf('http')===0?m.image:'https://api.stroyhous.ru'+m.image}" style="max-width:200px;border-radius:10px;margin-top:${m.text?'6px':'0'};display:block;">`:'';
+        const time=new Date(m.created_at).toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'});
+        return `<div style="display:flex;justify-content:${mine?'flex-end':'flex-start'};margin-bottom:10px;"><div style="max-width:75%;background:${mine?'var(--accent)':'var(--surface2)'};color:${mine?'#fff':'var(--text)'};padding:10px 14px;border-radius:16px;border-bottom-${mine?'right':'left'}-radius:4px;">${m.text?`<div>${m.text}</div>`:''}${img}<div style="font-size:11px;opacity:.7;margin-top:4px;text-align:right;">${time}</div></div></div>`;
+      }).join('');
+      if(!silent)box.scrollIntoView(false),window.scrollTo(0,document.body.scrollHeight);
+    }).catch(e=>console.error(e));
+  }
+  function sendChatMsg(){
+    const inp=document.getElementById('chat-input');const text=inp.value.trim();if(!text)return;
+    inp.value='';
+    apiSend('/messages','POST',{phone:user.phone.replace(/\D/g,''),sender:'client',text:text,name:user.name||''}).then(()=>{
+      loadChatMessages();
+    }).catch(e=>{console.error(e);alert('Не отправилось');});
+  }
+  function sendChatPhoto(input){
+    const file=input.files[0];if(!file)return;
+    const fd=new FormData();fd.append('photo',file);
+    fetch(API+'/upload',{method:'POST',body:fd}).then(r=>r.json()).then(res=>{
+      if(res.url){
+        apiSend('/messages','POST',{phone:user.phone.replace(/\D/g,''),sender:'client',image:res.url,name:user.name||''}).then(()=>loadChatMessages());
+      }
+    }).catch(e=>{console.error(e);alert('Фото не отправилось');});
+    input.value='';
+  }
+
+  loadProducts();loadCategories();updateLoginChip();
+</script>
+</body>
+</html>
